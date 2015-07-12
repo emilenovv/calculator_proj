@@ -9,8 +9,11 @@
 #define LIBCOMM_H_
 
 #include<string.h>
+#include <queue>
 
 typedef int cid_t;
+
+//typedef std::queue<courier*> buffe_t;
 
 //extern "C" void (*register_function)(void(*)(void (*)()));
 //extern "C" void function_needing_callback();

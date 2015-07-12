@@ -5,6 +5,7 @@
  ///      Author: visteon
 ///
 
+#include <semaphore.h>
 #include <pthread.h>
 #include <iostream>
 #include <sys/mman.h>
@@ -13,34 +14,43 @@
 #include <sys/types.h>
 #include <unistd.h>
 #include <string.h>
+#include <queue>
+
 #include "libcomm.h"
 
 using namespace std;
 
 
+//void (*callback)() = NULL;
+//
+//void register_function(void(*ortabudala)())
+//{
+//    callback = ortabudala;
+//}
+//
+//void function_needing_callback()
+//{
+//     callback();
+//}
+//
 
-void (*callback)() = NULL;
+static queue<courier*> buffer;
 
-void register_function(void(*ortabudala)())
+void* add_request(void* c)
 {
-    callback = ortabudala;
+	courier* cr = (courier*)c;
+	buffer.push(cr);
+	cout << "Added: " << buffer.size();
 }
-
-void function_needing_callback()
-{
-     callback();
-}
-
 
 int add(int a, int b)
 {
-	usleep(1000000);
+	usleep(10000000);
     return a + b;
 }
 
 int subtract(int a, int b)
 {
-
     return a - b;
 }
 
@@ -71,6 +81,9 @@ int substr(char* needle, char* haystack)
 shared* create_shared()
 {
     cout << "Initializing... \n";
+
+    sem_t *sem = sem_open("/mysem", O_CREAT, 0644, 0);
+
     int fd = shm_open("/mymem", O_CREAT | O_RDWR, 0666);
     ftruncate(fd, sizeof(shared));
     shared* shmem = (shared*)mmap(0, sizeof(shared), PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
@@ -109,38 +122,46 @@ shared* access_shared()
     return shmem;
 }
 
-void* client_write(void* chn)
+void* client_write(void* shm)
 {
-    channel* ch = (channel*)chn;
-    pthread_mutex_lock(&ch->dst->mtx);
-    while(ch->dst->s == false)
-        pthread_cond_wait(&ch->dst->server_ready, &ch->dst->mtx);
-    ch->dst->operation = ch->src->operation;
-    ch->dst->client_id = ch->src->client_id;
-    switch(ch->src->operation)
+    shared* sh = (shared*)shm;
+    //sem_post(sem);
+    //buffer.push(ch->src);
+    while(!buffer.empty())
     {
-        case 1:
-        case 2:
-        case 3:
-        case 4:
-        {
-            ch->dst->operand1.op1_i = ch->src->operand1.op1_i;
-            ch->dst->operand2.op2_i = ch->src->operand2.op2_i;
-        }break;
-        case 5:
-        case 6:
-        {
-            memcpy(ch->dst->operand1.op1_ch, ch->src->operand1.op1_ch, strlen(ch->src->operand1.op1_ch) + 1);
-            memcpy(ch->dst->operand2.op2_ch, ch->src->operand1.op1_ch, strlen(ch->src->operand2.op2_ch) + 1);
-        }break;
+		cout << "Buffer size: " << buffer.size();
+		pthread_mutex_lock(&sh->mtx);
+		while(sh->s == false)
+			pthread_cond_wait(&sh->server_ready, &sh->mtx);
+		courier* cr = buffer.front();
+		buffer.pop();
+		sh->operation = cr->operation;
+		sh->client_id = cr->client_id;
+		switch(cr->operation)
+		{
+			case 1:
+			case 2:
+			case 3:
+			case 4:
+			{
+				sh->operand1.op1_i = cr->operand1.op1_i;
+				sh->operand2.op2_i = cr->operand2.op2_i;
+			}break;
+			case 5:
+			case 6:
+			{
+				memcpy(sh->operand1.op1_ch, cr->operand1.op1_ch, strlen(cr->operand1.op1_ch) + 1);
+				memcpy(sh->operand2.op2_ch, cr->operand1.op1_ch, strlen(cr->operand2.op2_ch) + 1);
+			}break;
+		}
+		sh->s = false;
+		sh->new_request = true;
+		sh->c = true;
+		pthread_cond_signal(&sh->client_ready);
+	//    while(ch->dst->s == false)
+	//    	pthread_cond_wait(&ch->dst->server_ready, &ch->dst->mtx);
+		pthread_mutex_unlock(&sh->mtx);
     }
-    ch->dst->s = false;
-    ch->dst->new_request = true;
-    ch->dst->c = true;
-    pthread_cond_signal(&ch->dst->client_ready);
-    while(ch->dst->s == false)
-            pthread_cond_wait(&ch->dst->server_ready, &ch->dst->mtx);
-    pthread_mutex_unlock(&ch->dst->mtx);
 }
 
 
@@ -160,7 +181,7 @@ void* client_read(void* chm)
 void send_request(channel* ch)
 {
     pthread_t thread1;
-    pthread_create(&thread1, NULL, client_write, ch);
+    pthread_create(&thread1, NULL, add_request, ch->src);
     pthread_join(thread1, NULL);
 }
 
@@ -219,44 +240,49 @@ void send_request_wrapper(shared* sh, operand1_t a, operand2_t b, operation_t op
 //
 //}
 
-void* server_write(void *chn)
-{
-    channel* ch = (channel*) chn;
-    pthread_mutex_lock(&ch->dst->mtx);
-    while(ch->dst->c == false)
-        pthread_cond_wait(&ch->dst->client_ready, &ch->dst->mtx);
-
-    switch(ch->dst->operation)
-    {
-    case 1: cout << (ch->dst->result.result_int = add(ch->dst->operand1.op1_i, ch->dst->operand2.op2_i)); break;
-    case 2: cout << (ch->dst->result.result_int = subtract(ch->dst->operand1.op1_i, ch->dst->operand2.op2_i)); break;
-    case 3: cout << (ch->dst->result.result_int = multiply(ch->dst->operand1.op1_i, ch->dst->operand2.op2_i)); break;
-    case 4: cout << (ch->dst->result.result_int = divide(ch->dst->operand1.op1_i, ch->dst->operand2.op2_i)); break;
-    case 6: cout << (ch->dst->result.result_int = substr(ch->dst->operand1.op1_ch, ch->dst->operand2.op2_ch)); break;
-    case 5:
-    {
-        concat(ch->dst->operand1.op1_ch, ch->dst->operand2.op2_ch);
-        memcpy(ch->dst->result.result_char, concat(ch->dst->operand1.op1_ch, ch->dst->operand2.op2_ch), strlen(ch->src->result.result_char) + 1);
-
-    }break;
-    }
-    ch->dst->s = true;
-    ch->dst->c = false;
-    ch->dst->new_request = false;
-    pthread_cond_signal(&ch->dst->server_ready);
-    pthread_mutex_unlock(&ch->dst->mtx);
-}
+//void* server_write(void *chn)
+//{
+//    channel* ch = (channel*) chn;
+//    pthread_mutex_lock(&ch->dst->mtx);
+//    while(ch->dst->c == false)
+//        pthread_cond_wait(&ch->dst->client_ready, &ch->dst->mtx);
+//
+//    switch(ch->dst->operation)
+//    {
+//    case 1: cout << (ch->dst->result.result_int = add(ch->dst->operand1.op1_i, ch->dst->operand2.op2_i)); break;
+//    case 2: cout << (ch->dst->result.result_int = subtract(ch->dst->operand1.op1_i, ch->dst->operand2.op2_i)); break;
+//    case 3: cout << (ch->dst->result.result_int = multiply(ch->dst->operand1.op1_i, ch->dst->operand2.op2_i)); break;
+//    case 4: cout << (ch->dst->result.result_int = divide(ch->dst->operand1.op1_i, ch->dst->operand2.op2_i)); break;
+//    case 6: cout << (ch->dst->result.result_int = substr(ch->dst->operand1.op1_ch, ch->dst->operand2.op2_ch)); break;
+//    case 5:
+//    {
+//        concat(ch->dst->operand1.op1_ch, ch->dst->operand2.op2_ch);
+//        memcpy(ch->dst->result.result_char, concat(ch->dst->operand1.op1_ch, ch->dst->operand2.op2_ch), strlen(ch->src->result.result_char) + 1);
+//
+//    }break;
+//    }
+//    ch->dst->s = true;
+//    ch->dst->c = false;
+//    ch->dst->new_request = false;
+//    pthread_cond_signal(&ch->dst->server_ready);
+//    pthread_mutex_unlock(&ch->dst->mtx);
+//}
 
 void send_reply(shared* sh) //synchronously
 {
 	pthread_mutex_lock(&sh->mtx);
-	while(sh->c == false)
-		pthread_cond_wait(&sh->client_ready, &sh->mtx);
+//	while(sh->c == false)
+//		pthread_cond_wait(&sh->client_ready, &sh->mtx);
 	if (sh->operation == 1 || sh->operation == 2)
 	{
 		pthread_t thread1;
 		pthread_create(&thread1, NULL, calculate_math, sh);
 		pthread_join(thread1, NULL);
+//		sh->s = true;
+//		sh->c = false;
+//		sh->new_request = false;
+//		pthread_cond_signal(&sh->server_ready);
+//		pthread_mutex_unlock(&sh->mtx);
 	}
 	else if (sh->operation == 3)
 	{

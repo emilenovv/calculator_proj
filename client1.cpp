@@ -18,6 +18,7 @@ using namespace std;
 int main()
 {
 	shared* shmem = access_shared();
+	pthread_t t1;
 	while(true)
 	{
 		cout << "\t\t(1)\tAdd 2 numbers\n";
@@ -52,7 +53,9 @@ int main()
 				cout << "Please enter a valid command!\n";break;
 		}
 		send_request_wrapper(shmem, op1, op2, (operation_t)cmd, 1);
+		pthread_create(&t1, NULL, client_write, shmem);
 	}
+	pthread_join(t1, NULL);
     return 0;
 }
 

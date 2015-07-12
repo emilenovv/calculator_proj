@@ -23,7 +23,7 @@ int main()
     	if(ch->dst->new_request)
     	{
     		send_reply(shmem);
-    		break;
+    		//break;
     		cout << "111";
     		ch->dst->new_request = false;
     		//break;
