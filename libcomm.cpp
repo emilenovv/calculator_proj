@@ -20,7 +20,7 @@
 
 using namespace std;
 
-
+/////////////////////////////To be tested
 //void (*callback)() = NULL;
 //
 //void register_function(void(*ortabudala)())
@@ -32,7 +32,7 @@ using namespace std;
 //{
 //     callback();
 //}
-//
+/////////////////////////////////////////
 
 static queue<courier*> buffer;
 

@@ -12,7 +12,6 @@
 #include <queue>
 
 typedef int cid_t;
-
 //typedef std::queue<courier*> buffe_t;
 
 //extern "C" void (*register_function)(void(*)(void (*)()));
@@ -92,13 +91,16 @@ typedef struct channel
     shared* dst;
 }channel;
 
+// Needs to be tested
+void function_needing_callback();
+void (*register_function)(void(*)());
+//#end
 
 extern "C" int add(int, int);
 int subtract(int, int);
 int multiply(int, int);
 int divide(int, int);
 char* concat(char*, char*);
-
 shared* create_shared();
 extern "C" shared* access_shared();
 void init();
