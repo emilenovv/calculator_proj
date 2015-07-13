@@ -57,11 +57,12 @@ void* add_request(void* c)
 {
     courier* cr = (courier*)c;
     buffer.push(cr);
+    cout << "Added buffer size: " << buffer.size();
 }
 
 int add(int a, int b)
 {
-    sleep(3);
+    sleep(6);
     return a + b;
 }
 
@@ -142,7 +143,6 @@ void* client_write(void* shm)
 {
     shared* sh = (shared*)shm;
     //sem_post(sem);
-    //buffer.push(ch->src);
     while(!buffer.empty())
     {
         pthread_mutex_lock(&sh->mtx);
@@ -199,8 +199,8 @@ void send_request(channel* ch)
 {
     pthread_t thread1, t1;
     pthread_create(&thread1, NULL, add_request, ch->src);
-    pthread_create(&t1, NULL, client_write, ch->dst);
     pthread_join(thread1, NULL);
+    pthread_create(&t1, NULL, client_write, ch->dst);
 }
 
 void send_request_wrapper(shared* sh, operand1_t a, operand2_t b, operation_t op, cid_t id)
@@ -245,7 +245,7 @@ void* send_reply(void* shm) //synchronously
         else
             pthread_cond_wait(&sh->client_done[1], &sh->mtx);
     }
-    cout << "Sending\n";
+    cout << "Sending to client << " << sh->client_id << endl;
     if (sh->operation == 1 || sh->operation == 2)
     {
         pthread_create(&thread1, NULL, calculate_math, sh);
