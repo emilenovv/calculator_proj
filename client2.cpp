@@ -1,71 +1,91 @@
-/*
- * client2.cpp
- *
- *  Created on: Jul 12, 2015
- *      Author: emil
- */
+///
+ /// client2.cpp
+ ///
+ ///  Created on: Jul 13, 2015
+ ///      Author: visteon
+///
+
+
 
 #include <cstdlib>
-
 #include <iostream>
 #include <pthread.h>
 #include <dlfcn.h>
-
 #include "libcomm.h"
+
+#define CLIENT_ID 2
 
 using namespace std;
 
-typedef shared* (*fn_t)();
+typedef shared* (*access_fn)();
+typedef void (*register_fn)(cb_t, shared*, cid_t);
+typedef void (*print_fn)(shared*);
+typedef void (*send_fn)(shared*, operand1_t, operand2_t, operation_t, cid_t);
 
+void* handle;
 
-void ortabudala()
+print_fn print_res;
+
+void callback(shared* sh)
 {
-	cout << "I am the BEST!";
+    cout << "\nReceiving message: ";
+    print_res(sh);
 }
 
 int main()
 {
-	void *handle = dlopen("./libcomm.so", RTLD_LAZY);
-	//register_function = (void (*)(void(*)()))dlsym(handle, "register_function");
-	//register_function(ortabudala);
-	//shared* shmem = func;
-//	while(true)
-//	{
-//		cout << "\t\t(1)\tSubtract 2 numbers\n";
-//		cout << "\t\t(2)\tDivide 2 numbers\n";
-//		cout << "\t\t(3)\tFind substring in a string\n";
-//		cout << "\t\t(4)\tExit\n";
-//		cout << "\tEnter command: ";
-//		int cmd;
-//		cin >> cmd;
-//		operand1_t op1;
-//		operand2_t op2;
-//		switch(cmd)
-//		{
-//			case 1:
-//			case 2:
-//			{
-//				cout << "Enter number 1: ";
-//				cin >> op1.op1_i;
-//				cout << "Enter number 2: ";
-//				cin >> op2.op2_i;
-//			}break;
-//			case 3:
-//			{
-//				cout << "Enter string 1: ";
-//				cin >> op1.op1_ch;
-//				cout << "Enter substring 2: ";
-//				cin >> op2.op2_ch;
-//			}break;
-//
-//			case 4:
-//				cout << "Goodbye";break;
-//			default:
-//				cout << "Please enter a valid command!\n";break;
-//		}
-//		send_request_wrapper(shmem, op1, op2, (operation_t)cmd);
-//	}
-	return 0;
+    handle = dlopen("./libcomm.so", RTLD_LAZY);
+    if (handle == NULL)
+        cout << "ERROR\n";
+
+    print_res = (print_fn)dlsym(handle, "print_result");
+    access_fn gain_access = (access_fn)dlsym(handle, "access_shared");
+    if (gain_access == NULL)
+        cout << "gain error";
+    shared* shmem = gain_access();
+
+    register_fn register_cb = (register_fn)dlsym(handle, "register_callback");
+    if (register_cb == NULL)
+        cout << "cb error\n";
+    register_cb(callback, shmem, CLIENT_ID);
+
+    send_fn send_req = (send_fn)dlsym(handle, "send_request_wrapper");
+
+
+    int cmd;
+    do
+    {
+        cout << "\t\t(1)\tSubtract 2 numbers\n";
+        cout << "\t\t(2)\tDivide 2 numbers\n";
+        cout << "\t\t(3)\tFind substring in a string\n";
+        cout << "\t\t(4)\tExit\n";
+        cout << "\tEnter command: ";
+        cin >> cmd;
+        operand1_t op1;
+        operand2_t op2;
+        switch(cmd)
+        {
+            case 1:
+            case 2:
+            {
+                cout << "Enter number 1: ";
+                cin >> op1.op1_i;
+                cout << "Enter number 2: ";
+                cin >> op2.op2_i;
+            }break;
+            case 3:
+            {
+                cout << "Enter string 1: ";
+                cin >> op1.op1_ch;
+                cout << "Enter string 2: ";
+                cin >> op2.op2_ch;
+            }break;
+            case 4:
+                cout << "Goodbye!\n";break;
+            default:
+                cout << "Please enter a valid command!\n";break;
+        }
+        send_req(shmem, op1, op2, (operation_t)cmd, CLIENT_ID);
+    }while(cmd != 4);
+    return 0;
 }
-
-

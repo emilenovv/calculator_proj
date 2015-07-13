@@ -1,7 +1,7 @@
 ///
  /// server.cpp
  ///
- ///  Created on: Jul 10, 2015
+ ///  Created on: Jul 13, 2015
  ///      Author: visteon
 ///
 
@@ -11,24 +11,15 @@
 #include <pthread.h>
 #include "libcomm.h"
 using namespace std;
+
+pthread_t t;
+
 int main()
 {
-	//function_needing_callback();
     shared* shmem = create_shared();
-    channel* ch = new channel;
-    ch->dst = shmem;
-    ch->src = new courier;
-    while(true)
-    {
-    	if(ch->dst->new_request)
-    	{
-    		send_reply(shmem);
-    		//break;
-    		cout << "111";
-    		ch->dst->new_request = false;
-    		//break;
-    	}
-    }
-
+//    channel* ch = new channel;
+//    ch->dst = shmem;
+//    ch->src = new courier;
+    wait_for_request(shmem);
     return 0;
 }
