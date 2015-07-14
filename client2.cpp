@@ -11,7 +11,9 @@
 #include <iostream>
 #include <pthread.h>
 #include <dlfcn.h>
-#include "libcomm.h"
+
+#include "ipc_defs.hpp"
+#include "comm_lib.hpp"
 
 #define CLIENT_ID 2
 
@@ -28,7 +30,7 @@ print_fn print_res;
 
 void callback(shared* sh)
 {
-    cout << "\nReceiving message: ";
+    cout << "Receiving request... \n";
     print_res(sh);
 }
 
@@ -36,12 +38,12 @@ int main()
 {
     handle = dlopen("./libcomm.so", RTLD_LAZY);
     if (handle == NULL)
-        cout << "ERROR\n";
+        cout << "Handle error\n";
 
     print_res = (print_fn)dlsym(handle, "print_result");
     access_fn gain_access = (access_fn)dlsym(handle, "access_shared");
     if (gain_access == NULL)
-        cout << "gain error";
+        cout << "Gain error\n";
     shared* shmem = gain_access();
 
     register_fn register_cb = (register_fn)dlsym(handle, "register_callback");
@@ -53,7 +55,7 @@ int main()
 
 
     int cmd;
-    do
+    while(true)
     {
         cout << "\t\t(1)\tSubtract 2 numbers\n";
         cout << "\t\t(2)\tDivide 2 numbers\n";
@@ -81,11 +83,15 @@ int main()
                 cin >> op2.op2_ch;
             }break;
             case 4:
-                cout << "Goodbye!\n";break;
+            {
+                cout << "Goodbye!\n";
+                exit(0);
+            }break;
             default:
                 cout << "Please enter a valid command!\n";break;
         }
+        cout << "Sending request... \n";
         send_req(shmem, op1, op2, (operation_t)cmd, CLIENT_ID);
-    }while(cmd != 4);
+    }
     return 0;
 }

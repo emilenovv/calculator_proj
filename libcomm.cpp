@@ -15,9 +15,13 @@
 #include <sys/types.h>
 #include <unistd.h>
 #include <string.h>
+#include <semaphore.h>
 #include <queue>
 #include "libcomm.h"
 using namespace std;
+
+#define BUFFER_MAX_SIZE 128
+
 /////////////////////////////To be tested
 
 bool first_time = true;
@@ -55,9 +59,13 @@ static queue<courier*> buffer;
 
 void* add_request(void* c)
 {
-    courier* cr = (courier*)c;
-    buffer.push(cr);
+    channel* cr = (channel*)c;
+    sem_wait(cr->dst->slots);
+    pthread_mutex_lock(&cr->dst->mtx);
+    buffer.push(cr->src);
     cout << "Added buffer size: " << buffer.size();
+    pthread_mutex_unlock(&cr->dst->mtx);
+    sem_post(cr->dst->items);
 }
 
 int add(int a, int b)
@@ -97,11 +105,13 @@ int substr(char* needle, char* haystack)
 shared* create_shared()
 {
     cout << "Initializing... \n";
-    sem_t *sem = sem_open("/mysem", O_CREAT, 0644, 0);
     int fd = shm_open("/mymem", O_CREAT | O_RDWR, 0666);
     ftruncate(fd, sizeof(shared));
     shared* shmem = (shared*)mmap(0, sizeof(shared), PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
     close(fd);
+
+    shmem->slots = sem_open("/sem_empty", O_CREAT, 0644, 0);
+    shmem->items = sem_open("/", O_CREAT, 0644, BUFFER_MAX_SIZE);
 
     pthread_mutexattr_t shared;
     pthread_mutexattr_init(&shared);
@@ -145,6 +155,7 @@ void* client_write(void* shm)
     //sem_post(sem);
     while(!buffer.empty())
     {
+    	sem_wait(sh->items);
         pthread_mutex_lock(&sh->mtx);
         while(sh->s == false && !first_time)
             pthread_cond_wait(&sh->server_ready, &sh->mtx);
@@ -180,6 +191,7 @@ void* client_write(void* shm)
 //        while(sh->s == false)
 //            pthread_cond_wait(&sh->server_ready, &sh->mtx);
         pthread_mutex_unlock(&sh->mtx);
+        sem_post(sh->slots);
     }
 }
 
@@ -198,7 +210,7 @@ void* client_write(void* shm)
 void send_request(channel* ch)
 {
     pthread_t thread1, t1;
-    pthread_create(&thread1, NULL, add_request, ch->src);
+    pthread_create(&thread1, NULL, add_request, ch);
     pthread_join(thread1, NULL);
     pthread_create(&t1, NULL, client_write, ch->dst);
 }

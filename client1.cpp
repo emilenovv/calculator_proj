@@ -9,7 +9,9 @@
 #include <cstdlib>
 #include <iostream>
 #include <pthread.h>
-#include "libcomm.h"
+
+#include "ipc_defs.hpp"
+#include "comm_lib.hpp"
 
 #define CLIENT_ID 1
 
@@ -17,18 +19,16 @@ using namespace std;
 
 void callback(shared* sh)
 {
-    cout << "\nReceiving message: ";
+    cout << "Receiving request... \n";
     print_result(sh);
 }
 
 int main()
 {
-
     shared* shmem = access_shared();
-    pthread_t t1;
     register_callback(callback, shmem, CLIENT_ID);
     int cmd;
-    do
+    while(true)
     {
         cout << "\t\t(1)\tAdd 2 numbers\n";
         cout << "\t\t(2)\tMultiply 2 numbers\n";
@@ -56,11 +56,16 @@ int main()
                 cin >> op2.op2_ch;
             }break;
             case 4:
-                cout << "Goodbye!\n";break;
+            {
+                cout << "Goodbye!\n";
+                exit(0);
+            }break;
             default:
                 cout << "Please enter a valid command!\n";break;
         }
+        cout << "Sending request... \n";
         send_request_wrapper(shmem, op1, op2, (operation_t)cmd, CLIENT_ID);
-    }while(cmd != 4);
+    }
     return 0;
 }
+

@@ -9,17 +9,15 @@
 #include <cstdlib>
 #include <iostream>
 #include <pthread.h>
-#include "libcomm.h"
-using namespace std;
 
-pthread_t t;
+#include "ipc_defs.hpp"
+#include "comm_lib.hpp"
+using namespace std;
 
 int main()
 {
     shared* shmem = create_shared();
-//    channel* ch = new channel;
-//    ch->dst = shmem;
-//    ch->src = new courier;
     wait_for_request(shmem);
     return 0;
 }
+

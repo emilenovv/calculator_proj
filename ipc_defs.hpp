@@ -1,24 +1,17 @@
 ///
- /// libcomm.h
+ /// ipc_defs.hpp
  ///
- ///  Created on: Jul 13, 2015
+ ///  Created on: Jul 14, 2015
  ///      Author: visteon
 ///
 
-#ifndef LIBCOMM_H_
-#define LIBCOMM_H_
+#ifndef IPC_DEFS_HPP_
+#define IPC_DEFS_HPP_
 
-#include<string.h>
 #include <semaphore.h>
-#include <queue>
+#include <string.h>
 
-extern "C" {
-
-typedef int cid_t;
-
-//typedef std::queue<courier*> buffe_t;
-//extern "C" void (*register_function)(void(*)(void (*)()));
-//extern "C" void function_needing_callback();
+typedef short cid_t;
 
 typedef union operand1_t
 {
@@ -47,7 +40,7 @@ typedef union operand2_t
 typedef union result_t
 {
     int result_int;
-    char* result_char;
+    char result_char[33];
     result_t() {memset(this, 0, sizeof(result_t));}
     result_t(int _op2_i):result_int(_op2_i){}
     result_t(char* _result_char)
@@ -72,14 +65,16 @@ typedef struct shared
     operation_t operation;
     result_t result;
     cid_t client_id;
-
     pthread_mutex_t mtx;
+
     pthread_cond_t server_ready;
+    pthread_cond_t answer_calculated[2];
     pthread_cond_t client_done[2];
-    sem_t *slots, *items;
+
+    sem_t sem1;
+
     bool client_flag[2], answer_done[2];
-    bool s, new_request; //c = true when the client is has completed its job with the shared memory, respectively when server is ready
-    // s = true
+    bool server_flag, new_request; //*_flag = true when the * is has completed its job with the shared memory
 }shared;
 
 typedef struct courier
@@ -97,10 +92,6 @@ typedef struct channel
     shared* dst;
 }channel;
 
-
-
-// Needs to be tested
-
 typedef void (*cb_t)(shared* sh);
 
 typedef struct callback_t
@@ -110,32 +101,4 @@ typedef struct callback_t
     cid_t cid;
 }callback_t;
 
-void register_callback(cb_t, shared*, cid_t);
-void* wait_answer(void*);
-
-//#end
-int add(int, int);
-int subtract(int, int);
-int multiply(int, int);
-int divide(int, int);
-char* concat(char*, char*);
-shared* create_shared();
-shared* access_shared();
-void init();
-void* client_read(void*);
-void* client_write(void*);
-void* server_read(void*);
-void* server_write(void*);
-void* send_reply(void*);
-void send_reply_wrapper(shared*);
-void receive_reply(channel*);
-void send_request(channel*);
-void send_request_wrapper(shared*, operand1_t, operand2_t, operation_t, cid_t);
-//void recieve_request(channel*);
-void* calculate_math(void*);
-void* calculate_strings(void* sh);
-void wait_for_request(shared*);
-void* wait_for_request_task(void*);
-void print_result(shared*);
-}
-#endif /* LIBCOMM_H_ */
+#endif /* IPC_DEFS_HPP_ */
