@@ -9,7 +9,6 @@
 
 #include <cstdlib>
 #include <iostream>
-#include <pthread.h>
 #include <dlfcn.h>
 
 #include "ipc_defs.hpp"
@@ -23,6 +22,8 @@ typedef shared* (*access_fn)();
 typedef void (*register_fn)(cb_t, shared*, cid_t);
 typedef void (*print_fn)(shared*);
 typedef void (*send_fn)(shared*, operand1_t, operand2_t, operation_t, cid_t);
+typedef void (*verify_str_fn)(char*);
+typedef void (*verify_int_fn)(int*);
 
 void* handle;
 
@@ -53,6 +54,9 @@ int main()
 
     send_fn send_req = (send_fn)dlsym(handle, "send_request_wrapper");
 
+    verify_str_fn verify_string = (verify_str_fn)dlsym(handle, "verify_entered_string");
+
+    verify_int_fn verify_number = (verify_int_fn)dlsym(handle, "verify_entered_number");
 
     int cmd;
     while(true)
@@ -62,7 +66,7 @@ int main()
         cout << "\t\t(3)\tFind substring in a string\n";
         cout << "\t\t(4)\tExit\n";
         cout << "\tEnter command: ";
-        cin >> cmd;
+        verify_number(&cmd);
         operand1_t op1;
         operand2_t op2;
         switch(cmd)
@@ -71,16 +75,16 @@ int main()
             case 2:
             {
                 cout << "Enter number 1: ";
-                cin >> op1.op1_i;
+                verify_number(&op1.op1_i);
                 cout << "Enter number 2: ";
-                cin >> op2.op2_i;
+                verify_number(&op2.op2_i);
             }break;
             case 3:
             {
-                cout << "Enter string 1: ";
-                cin >> op1.op1_ch;
-                cout << "Enter string 2: ";
-                cin >> op2.op2_ch;
+                cout << "Enter substring: ";
+                verify_string(op1.op1_ch);
+                cout << "Enter string: ";
+                verify_string(op2.op2_ch);
             }break;
             case 4:
             {
@@ -88,7 +92,10 @@ int main()
                 exit(0);
             }break;
             default:
-                cout << "Please enter a valid command!\n";break;
+            {
+                cout << "Please enter a valid command!\n";
+                continue;
+            }break;
         }
         cout << "Sending request... \n";
         send_req(shmem, op1, op2, (operation_t)cmd, CLIENT_ID);

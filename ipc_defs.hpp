@@ -17,36 +17,18 @@ typedef union operand1_t
 {
     int op1_i;
     char op1_ch[17];
-    operand1_t() {memset(this, 0, sizeof(operand1_t));}
-    operand1_t(int _op1_i):op1_i(_op1_i){}
-    operand1_t(char* _op1_ch)
-    {
-        strcpy(op1_ch, _op1_ch);
-    }
 }operand1_t;
 
 typedef union operand2_t
 {
     int op2_i;
     char op2_ch[17];
-    operand2_t() {memset(this, 0, sizeof(operand2_t));}
-    operand2_t(int _op2_i):op2_i(_op2_i){}
-    operand2_t(char* _op2_ch)
-    {
-        strcpy(op2_ch, _op2_ch);
-    }
 }operand2_t;
 
 typedef union result_t
 {
     int result_int;
     char result_char[33];
-    result_t() {memset(this, 0, sizeof(result_t));}
-    result_t(int _op2_i):result_int(_op2_i){}
-    result_t(char* _result_char)
-    {
-        strcpy(result_char, _result_char);
-    }
     }result_t;
 
 typedef enum operation_t

@@ -5,11 +5,6 @@
  ///      Author: visteon
 ///
 
-
-#include <cstdlib>
-#include <iostream>
-#include <pthread.h>
-
 #include "ipc_defs.hpp"
 #include "comm_lib.hpp"
 using namespace std;

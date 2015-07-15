@@ -5,10 +5,9 @@
  ///      Author: visteon
 ///
 
-
 #include <cstdlib>
 #include <iostream>
-#include <pthread.h>
+#include <limits>
 
 #include "ipc_defs.hpp"
 #include "comm_lib.hpp"
@@ -35,7 +34,7 @@ int main()
         cout << "\t\t(3)\tConcatenate 2 strings\n";
         cout << "\t\t(4)\tExit\n";
         cout << "\tEnter command: ";
-        cin >> cmd;
+        verify_entered_number(&cmd);
         operand1_t op1;
         operand2_t op2;
         switch(cmd)
@@ -44,16 +43,16 @@ int main()
             case 2:
             {
                 cout << "Enter number 1: ";
-                cin >> op1.op1_i;
+                verify_entered_number(&op1.op1_i);
                 cout << "Enter number 2: ";
-                cin >> op2.op2_i;
+                verify_entered_number(&op2.op2_i);
             }break;
             case 3:
             {
                 cout << "Enter string 1: ";
-                cin >> op1.op1_ch;
+                verify_entered_string(op1.op1_ch);
                 cout << "Enter string 2: ";
-                cin >> op2.op2_ch;
+                verify_entered_string(op2.op2_ch);
             }break;
             case 4:
             {
@@ -61,7 +60,10 @@ int main()
                 exit(0);
             }break;
             default:
-                cout << "Please enter a valid command!\n";break;
+            {
+                cout << "Please enter a valid command!\n";
+                continue;
+            }break;
         }
         cout << "Sending request... \n";
         send_request_wrapper(shmem, op1, op2, (operation_t)cmd, CLIENT_ID);

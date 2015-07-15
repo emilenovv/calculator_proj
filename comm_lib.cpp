@@ -5,20 +5,19 @@
 ///      Author: visteon
 ///
 
-#include <cstdlib>
-#include <semaphore.h>
-#include <pthread.h>
 #include <iostream>
 #include <sys/mman.h>
-#include <sys/stat.h>
 #include <fcntl.h>
-#include <sys/types.h>
 #include <unistd.h>
-#include <string.h>
 #include <queue>
+#include <stdexcept>
+#include <limits>
 
 #include "comm_lib.hpp"
 #include "ipc_defs.hpp"
+
+#ifdef DELAY_TIME
+#endif
 
 using namespace std;
 
@@ -27,6 +26,29 @@ bool first_time = true;
 pthread_t t;
 callback_t callb;
 queue<courier*> buffer;
+
+void verify_entered_string(char* str)
+{
+    do
+    {
+        cin >> str;
+        if (strlen(str) < 1 || strlen(str) > 16)
+            cout << "String must be between 1 and 16 characters! Enter string again: ";
+    }while(strlen(str) < 1 || strlen(str) > 16);
+}
+
+void verify_entered_number(int* n)
+{
+    cin >> *n;
+    while(cin.fail())
+    {
+        cin.clear();
+        cin.ignore(numeric_limits<streamsize>::max(), '\n');
+        cout << "Bad argument! Please try again: ";
+        cin >> *n;
+    }
+    cin.ignore(numeric_limits<streamsize>::max(), '\n');
+}
 
 void register_callback(cb_t cb, shared* sh, cid_t id)
 {
@@ -77,6 +99,8 @@ int multiply(int a, int b)
 
 int divide(int a, int b)
 {
+    if (b == 0)
+        throw std::invalid_argument("Divisor must be non-zero!\n");
     return a / b;
 }
 
@@ -92,11 +116,11 @@ int substr(char* needle, char* haystack)
 {
     bool flag = true;
     int current_index = 0;
-    for (int i = 0; i < strlen(haystack); ++i)
+    for (size_t i = 0; i < strlen(haystack); ++i)
     {
         if (haystack[i] == needle[current_index])
         {
-            for (int j = i + 1; j < strlen(needle); ++j)
+            for (size_t j = i + 1; j < i + strlen(needle) && flag; ++j)
             {
                 if (haystack[j] != needle[++current_index])
                     flag = false;
@@ -104,8 +128,10 @@ int substr(char* needle, char* haystack)
             if (flag)
                 return i;
         }
+        flag = true;
+        current_index = 0;
     }
-    return NULL;
+    return -1;
 }
 
 shared* create_shared()
@@ -265,6 +291,11 @@ void* calculate_math(void* shm)
     shared* sh = (shared*)shm;
     operation_t op = sh->operation;
     cid_t id = sh->client_id;
+
+#ifdef DELAY
+    sleep(DELAY_TIME); //this is used to simulate delay in the server
+#endif
+
     if (id == 1)
     {
         if (op == 1)
@@ -276,16 +307,32 @@ void* calculate_math(void* shm)
     else if (id == 2)
     {
         if (op == 1)
+        {
             sh->result.result_int = subtract(sh->operand1.op1_i, sh->operand2.op2_i);
+            cout << "Result: " << sh->result.result_int << endl;
+        }
         else if (op == 2)
-            sh->result.result_int = divide(sh->operand1.op1_i, sh->operand2.op2_i);
-        cout << "Result: " << sh->result.result_int << endl;
+        {
+            try
+            {
+                sh->result.result_int = divide(sh->operand1.op1_i, sh->operand2.op2_i);
+                cout << "Result: " << sh->result.result_int << endl;
+            }
+            catch (const std::invalid_argument& e)
+            {
+                cout << e.what();
+            }
+        }
     }
     return NULL;
 }
 
 void* calculate_strings(void* shm)
 {
+#ifdef DELAY
+    sleep(DELAY_TIME); //this is used to simulate delay in the server
+#endif
+
     shared* sh = (shared*)shm;
     cid_t id = sh->client_id;
     if (id == 1)
@@ -337,7 +384,10 @@ void print_result(shared* sh)
         }
         else if (sh->operation == 3)
         {
-            cout << "Result from concat(" << sh->operand1.op1_ch << ", " << sh->operand2.op2_ch << ") is ";
+            if (!strcmp(sh->result.result_char, "0"))
+                cout << "The entered strings are too long!\n";
+            else
+                cout << "Result from concat(" << sh->operand1.op1_ch << ", " << sh->operand2.op2_ch << ") is ";
             cout << sh->result.result_char << endl;
         }
     }
@@ -350,13 +400,21 @@ void print_result(shared* sh)
         }
         else if (sh->operation == 2)
         {
-            cout << "Result from (" << sh->operand1.op1_i << "/" << sh->operand2.op2_i << ") is ";
-            cout << sh->result.result_int << endl;
+            if (sh->operand2.op2_i == 0)
+                cout << "You cannot divide by zero!\n";
+            else
+            {
+                cout << "Result from (" << sh->operand1.op1_i << "/" << sh->operand2.op2_i << ") is ";
+                cout << sh->result.result_int << endl;
+            }
         }
         else if (sh->operation == 3)
         {
             cout << "Result from substr(" << sh->operand1.op1_ch << ", " << sh->operand2.op2_ch << ") is ";
-            cout << sh->result.result_int << endl;
+            if (sh->result.result_int == -1)
+                cout << "NULL\n";
+            else
+                cout << sh->result.result_int << endl;
         }
     }
 }

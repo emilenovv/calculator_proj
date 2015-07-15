@@ -15,6 +15,9 @@ extern "C" {
 void register_callback(cb_t, shared*, cid_t);
 void* wait_answer(void*);
 
+void verify_entered_string(char*);
+void verify_entered_number(int*);
+
 int add(int, int);
 int subtract(int, int);
 int multiply(int, int);
