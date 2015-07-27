@@ -13,4 +13,4 @@ Server can perform basic operations:
   &nbsp; &nbsp; &nbsp; &nbsp;ii.	search for substring within a string (return the position of the substring)<br>
 
 To simulate delay in the server delay type ```
-make all OPT=-DDELAY TIME=-DELAY_TIME=(number of seconds)```
+make all OPT=-DDELAY TIME=-DDELAY_TIME=(number of seconds)```
